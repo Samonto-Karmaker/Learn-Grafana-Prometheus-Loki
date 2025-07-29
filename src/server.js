@@ -1,6 +1,12 @@
 const express = require("express")
+const client = require("prom-client")
+
 const app = express()
 const PORT = process.env.PORT || 3000
+
+// Initialize Prometheus client
+const collectDefaultMetrics = client.collectDefaultMetrics
+collectDefaultMetrics({ register: client.register })
 
 // Middleware to parse JSON
 app.use(express.json())
@@ -67,6 +73,12 @@ app.get("/slow", async (req, res) => {
             timestamp: new Date().toISOString(),
         })
     }
+})
+
+// Metrics endpoint for Prometheus
+app.get("/metrics", async (req, res) => {
+    res.setHeader("Content-Type", client.register.contentType)
+    res.end(await client.register.metrics())
 })
 
 // 404 handler
