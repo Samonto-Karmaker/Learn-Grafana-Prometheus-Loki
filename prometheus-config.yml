@@ -1,0 +1,12 @@
+global:
+    scrape_interval: 5s
+
+scrape_configs:
+    - job_name: prometheus
+      static_configs:
+          - targets: ["host.docker.internal:3000"] 
+          # Use 'host.docker.internal' as the target for Prometheus running on the host machine not in a container
+          # If running in a Docker container, you might need to use the container name or service name instead
+          # - targets: ["prometheus:3000"] # If Prometheus is running in a Docker container with the service name 'prometheus'
+          # you can also specify multiple targets (in case of microservices) if needed like this:
+            # - targets: ["host.docker.internal:3000", "another-target:3000"]
