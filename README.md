@@ -1,107 +1,129 @@
-# Express Monitoring Server
+# LGP Stack Setup (Loki + Grafana + Prometheus)
 
-A basic Express.js server designed for testing monitoring tools like Grafana, Prometheus, and Loki.
+Complete monitoring and observability stack setup with Express.js application for learning and testing.
 
-## Features
+## Stack Overview
 
--   **Health Check Endpoint** (`/`): Returns server status and uptime
--   **Slow Endpoint** (`/slow`): Simulates real-world scenarios with:
-    -   Random response times (500ms - 3000ms)
-    -   20% chance of random failures
-    -   Detailed timing information
+-   **Loki**: Log aggregation system
+-   **Grafana**: Visualization and dashboards
+-   **Prometheus**: Metrics collection and monitoring
+-   **Express App**: Sample application with metrics and logging
 
-## Installation
+## Quick Start
 
-1. Install dependencies:
+1. **Install dependencies:**
+
     ```bash
     npm install
     ```
 
-## Usage
+2. **Start monitoring stack:**
 
-### Development Mode (with auto-restart)
+    ```bash
+    # Start Prometheus
+    docker-compose up -d
+
+    # Start Loki
+    docker run -d --name=loki -p 3100:3100 grafana/loki
+
+    # Start Grafana
+    docker run -d -p 3001:3000 --name=grafana grafana/grafana-oss
+    ```
+
+3. **Start Express application:**
+    ```bash
+    npm start
+    ```
+
+### Alternative: Complete Docker Compose Setup
+
+To run everything with docker-compose, update your `docker-compose.yaml`:
+
+```yaml
+version: "3"
+
+services:
+    prom-server:
+        image: prom/prometheus
+        ports:
+            - 9090:9090
+        volumes:
+            - ./prometheus-config.yml:/etc/prometheus/prometheus.yml
+
+    loki:
+        image: grafana/loki:latest
+        ports:
+            - "3100:3100"
+        command: -config.file=/etc/loki/local-config.yaml
+
+    grafana:
+        image: grafana/grafana:latest
+        ports:
+            - "3001:3000"
+        environment:
+            - GF_SECURITY_ADMIN_PASSWORD=admin
+        volumes:
+            - grafana-storage:/var/lib/grafana
+
+volumes:
+    grafana-storage:
+```
+
+Then simply run: `docker-compose up -d`
+
+## Access Points
+
+-   **Express App**: http://localhost:3000
+-   **Prometheus**: http://localhost:9090
+-   **Grafana**: http://localhost:3001 (admin/admin)
+-   **Loki API**: http://localhost:3100
+
+## Configuration Files
+
+-   `docker-compose.yaml` - Container orchestration
+-   `prometheus-config.yml` - Prometheus scraping configuration
+-   `src/server.js` - Express app with metrics and logging
+
+## Verification Steps
+
+1. **Check Prometheus targets:**
+
+    - Go to http://localhost:9090/targets
+    - Verify Express app metrics are being scraped
+
+2. **Setup Grafana:**
+
+    - Login to http://localhost:3001
+    - Add Prometheus data source: `http://prometheus:9090` | `http://host.docker.internal:9090`
+    - Add Loki data source: `http://loki:3100` | `http://host.docker.internal:3100`
+
+3. **Test logging and metrics:**
+    ```bash
+    curl http://localhost:3000/
+    curl http://localhost:3000/slow
+    curl http://localhost:3000/metrics
+    ```
+
+## Grafana Dashboard Queries
+
+**Prometheus Queries:**
+
+-   Request rate: `rate(http_requests_total[5m])`
+-   Response time: `histogram_quantile(0.95, rate(request_response_time_seconds_bucket[5m]))`
+
+**Loki Queries:**
+
+-   All logs: `{app="express-server"}`
+-   Error logs: `{app="express-server"} |= "error"`
+
+## Cleanup
 
 ```bash
-npm run dev
+# Stop and remove individual containers
+docker stop grafana loki
+docker rm grafana loki
+docker-compose down
+
+# Or if using complete docker-compose setup
+docker-compose down -v
 ```
-
-### Production Mode
-
-```bash
-npm start
-```
-
-The server will start on port 3000 by default (or the port specified in the `PORT` environment variable).
-
-## Endpoints
-
-### GET /
-
-Health check endpoint that returns:
-
--   Server status
--   Uptime information
--   Current timestamp
-
-**Example Response:**
-
-```json
-{
-    "status": "healthy",
-    "message": "Server is running properly",
-    "timestamp": "2025-07-29T10:30:00.000Z",
-    "uptime": 123.45
-}
-```
-
-### GET /slow
-
-Simulates a slow operation with random timing and potential failures:
-
--   Random delay between 500ms and 3000ms
--   20% chance of failure
--   Returns timing information
-
-**Success Response:**
-
-```json
-{
-    "status": "success",
-    "message": "Operation completed successfully",
-    "simulatedTime": 1500,
-    "actualTime": 1502,
-    "timestamp": "2025-07-29T10:30:00.000Z"
-}
-```
-
-**Error Response:**
-
-```json
-{
-    "status": "error",
-    "message": "Random server error occurred",
-    "actualTime": 1200,
-    "timestamp": "2025-07-29T10:30:00.000Z"
-}
-```
-
-## Testing
-
-You can test the endpoints using curl or any HTTP client:
-
-```bash
-# Health check
-curl http://localhost:3000/
-
-# Slow endpoint (may succeed or fail randomly)
-curl http://localhost:3000/slow
-```
-
-## Use Cases
-
-This server is perfect for:
-
--   Testing monitoring and observability tools
--   Demonstrating error handling and logging
--   Load testing with realistic response patterns
--   Learning about distributed systems behavior
