@@ -1,5 +1,6 @@
 const express = require("express")
 const client = require("prom-client")
+const responseTime = require("response-time")
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -7,6 +8,27 @@ const PORT = process.env.PORT || 3000
 // Initialize Prometheus client
 const collectDefaultMetrics = client.collectDefaultMetrics
 collectDefaultMetrics({ register: client.register })
+
+// Setting up custom metrics
+const reqResTimeHistogram = new client.Histogram({
+    name: "request_response_time_seconds",
+    help: "Histogram of request response time in seconds",
+    labelNames: ["method", "route", "status_code"],
+    buckets: [0.1, 0.5, 1, 2, 3, 5, 10], // Buckets for response time in seconds
+})
+
+// Middleware to measure request/response time
+app.use(
+    responseTime((req, res, time) => {
+        reqResTimeHistogram
+            .labels({
+                method: req.method,
+                route: req.url,
+                status_code: res.statusCode,
+            })
+            .observe(time / 1000) // time in seconds
+    })
+)
 
 // Middleware to parse JSON
 app.use(express.json())
